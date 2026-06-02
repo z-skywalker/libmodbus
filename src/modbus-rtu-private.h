@@ -82,6 +82,7 @@ typedef struct _modbus_rtu {
 #endif
     /* To handle many slaves on the same link */
     int confirmation_to_ignore;
+    void (*rs485_tx)(modbus_t *ctx, int on);
 } modbus_rtu_t;
 
 #endif /* MODBUS_RTU_PRIVATE_H */
