@@ -275,20 +275,23 @@ static ssize_t _modbus_rtu_send(modbus_t *ctx, const uint8_t *req, int req_lengt
         ctx_rtu->set_rts(ctx, ctx_rtu->rts == MODBUS_RTU_RTS_UP);
         usleep(ctx_rtu->rts_delay);
 
-        if (ctx_rtu->rs485_tx) {
-            ctx_rtu->rs485_tx(ctx, 1);
+        if (ctx_rtu->rs485_txctl) {
+            ctx_rtu->rs485_txctl(ctx, 1);
         }
 
         size = write(ctx->s, req, req_length);
+
+#ifndef _WIN32
         if (size > 0) {
             int lsr;
             do {
                 ioctl(ctx->s, TIOCSERGETLSR, &lsr);
             } while (!(lsr & TIOCSER_TEMT));
         }
+#endif
 
-        if (ctx_rtu->rs485_tx) {
-            ctx_rtu->rs485_tx(ctx, 0);
+        if (ctx_rtu->rs485_txctl) {
+            ctx_rtu->rs485_txctl(ctx, 0);
         }
 
         usleep(ctx_rtu->onebyte_time * req_length + ctx_rtu->rts_delay);
@@ -299,20 +302,23 @@ static ssize_t _modbus_rtu_send(modbus_t *ctx, const uint8_t *req, int req_lengt
 #endif
         ssize_t size;
 
-        if (ctx_rtu->rs485_tx) {
-            ctx_rtu->rs485_tx(ctx, 1);
+        if (ctx_rtu->rs485_txctl) {
+            ctx_rtu->rs485_txctl(ctx, 1);
         }
 
         size = write(ctx->s, req, req_length);
+
+#ifndef _WIN32
         if (size > 0) {
             int lsr;
             do {
                 ioctl(ctx->s, TIOCSERGETLSR, &lsr);
             } while (!(lsr & TIOCSER_TEMT));
         }
+#endif
 
-        if (ctx_rtu->rs485_tx) {
-            ctx_rtu->rs485_tx(ctx, 0);
+        if (ctx_rtu->rs485_txctl) {
+            ctx_rtu->rs485_txctl(ctx, 0);
         }
 
         return size;
@@ -1157,7 +1163,7 @@ int modbus_rtu_set_rts_delay(modbus_t *ctx, int us)
     }
 }
 
-int modbus_rtu_set_rs485_tx(modbus_t *ctx, void (*rs485_tx)(modbus_t *ctx, int on))
+int modbus_rtu_set_rs485_txctl(modbus_t *ctx, void (*rs485_txctl)(modbus_t *ctx, int on))
 {
     if (ctx == NULL) {
         errno = EINVAL;
@@ -1166,7 +1172,7 @@ int modbus_rtu_set_rs485_tx(modbus_t *ctx, void (*rs485_tx)(modbus_t *ctx, int o
 
     if (ctx->backend->backend_type == _MODBUS_BACKEND_TYPE_RTU) {
         modbus_rtu_t *ctx_rtu = ctx->backend_data;
-        ctx_rtu->rs485_tx = rs485_tx;
+        ctx_rtu->rs485_txctl = rs485_txctl;
         return 0;
     } else {
         errno = EINVAL;
@@ -1378,7 +1384,7 @@ modbus_new_rtu(const char *device, int baud, char parity, int data_bit, int stop
 #endif
 
     ctx_rtu->confirmation_to_ignore = FALSE;
-    ctx_rtu->rs485_tx = NULL;
+    ctx_rtu->rs485_txctl = NULL;
 
     return ctx;
 }
